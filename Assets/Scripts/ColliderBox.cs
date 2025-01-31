@@ -32,7 +32,7 @@ public class ColliderBox : MonoBehaviour
     void OnTriggerStay2D(Collider2D box){
         if(box.gameObject.layer == 10){   //地面
             contact = true;
-            Debug.Log(box.name);
+            //Debug.Log(box.name);
         }
     }
 
@@ -41,7 +41,7 @@ public class ColliderBox : MonoBehaviour
     }
 
     public bool isContact(){
-        Debug.Log(contact);
+        //Debug.Log(contact);
         return contact;
     }
 }

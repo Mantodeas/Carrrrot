@@ -1,19 +1,23 @@
 using System.Collections;
 using System.Collections.Generic;
+using Unity.VisualScripting;
 using UnityEditor.Callbacks;
 using UnityEditor.Experimental.GraphView;
 using UnityEngine;
+using UnityEngine.PlayerLoop;
 
 public class Enemy : MonoBehaviour
 {
-    [SerializeField] GameObject rabbit;
     [SerializeField] float bulletSpeed;
     [SerializeField] GameObject bulletPrefab;
 
-    int currentAction;
+    [SerializeField] int currentAction;
 
     [SerializeField] float waitTimeMax;
     float waitTime;
+    float discoverTime;
+    [SerializeField] int attackPortion;
+    [SerializeField] float attackDistance;
 
     public Animator ani;
     int aniStatu;
@@ -22,17 +26,21 @@ public class Enemy : MonoBehaviour
     bool discovered;
 
     int moving;
+    bool isAttack;
     [SerializeField] float fric;
 
     Rigidbody2D rb;
     [SerializeField] float speed;
 
-    [SerializeField] GameObject warn;
+    [SerializeField] GameObject warningPrefab;
+    Vector2 velocity;
+    MoveController move;
     // Start is called before the first frame update
     void Start()
     {
         transform.tag = "Enemy";
         rb = transform.parent.GetComponent<Rigidbody2D>();
+        move = transform.parent.GetComponent<MoveController>();
 
         direction = 1;
         discovered = false;
@@ -43,14 +51,16 @@ public class Enemy : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
+        
+        velocity = move.ToRelativeVelocity(rb.velocity);
         //Debug.Log(Random.Range(0, 2));
-        Ray ray = new Ray(transform.position, transform.forward);
+        Ray ray = new Ray(transform.position, move.ToRelativeVelocity(transform.parent.forward));
         RaycastHit2D hitInfo;
-        hitInfo = Physics2D.Raycast(transform.position, new Vector2(direction, 0), 5, LayerMask.GetMask("Rabbit"));
-        Debug.DrawLine(transform.position, transform.position + new Vector3(direction * 10, 0, 0), Color.blue);
+        hitInfo = Physics2D.Raycast(transform.position, move.ToRelativeVelocity(new Vector2(direction, 0)), 5, LayerMask.GetMask("Rabbit"));
+        Debug.DrawLine(transform.position, (Vector2)transform.position + move.ToRelativeVelocity(new Vector3(direction * 10, 0, 0)), Color.blue);
         if(hitInfo){
-            //Debug.DrawLine(transform.position, transform.position + transform.forward * 10, Color.blue);
             discovered = true;
+            discoverTime = 60;
         }
         else{
             discovered = false;
@@ -62,23 +72,45 @@ public class Enemy : MonoBehaviour
 
             case 1: //巡逻
                 waitTime += Time.deltaTime;
-                int action = Random.Range(0, 1000);
-                if ((float)action / 1000 < waitTime / waitTimeMax){
+                if ((float)(Random.Range(0, 1000)) / 1000 < waitTime / waitTimeMax && waitTime / waitTimeMax > 0.2f){
                     //Debug.Log((float)action / 1000 + " " +  waitTime + " " + waitTimeMax);
-                    moving = -1;
-                }
-                else{
-                    moving = 0;
+                    moving = -1;    //随机移动
                 }
 
                 if(discovered){
                     currentAction = 2;
+                    waitTime = 0;
+                    moving = 1;     //立即移动一次
+                    StartCoroutine("Warning");
                 }
 
                 break;
 
             case 2: //追逐
-                moving = 1;
+                waitTime += Time.deltaTime;
+                discoverTime -= Time.deltaTime;
+
+                if(discoverTime <= 0){
+                    currentAction = 1;
+                    discovered = false;
+
+                } 
+
+                direction = GameController.instance.rabbit.transform.position.x > transform.position.x ? 1 : -1;
+
+                if ((float)(Random.Range(0, 1000)) / 1000 < waitTime / waitTimeMax && waitTime / waitTimeMax > 0.2f){
+                    float portion = Mathf.Abs(transform.position.x - GameController.instance.rabbit.transform.position.x) / attackDistance;
+                    portion = portion > 1 ? portion : 1;
+                    //Debug.Log(portion);
+                    
+                    if(Random.Range(0, 100) > attackPortion / portion){ //距离过远增加移动欲望
+                        moving = 1;         //朝主角方向移动
+                    }
+                    else{
+                        isAttack = true;
+                    }
+                    waitTime = 0;
+                }
                 break;
 
             case 3: //攻击
@@ -90,39 +122,58 @@ public class Enemy : MonoBehaviour
         }
 
         if(Input.GetKeyDown(KeyCode.Q)){
-            Debug.Log("Att");
-            SetStatus(1);
-            rb.velocity = new Vector2(-6 * direction, 10);
-                
+            isAttack = true;
+        }
+        if(Input.GetKeyDown(KeyCode.E)){
+            //Move(true);
+            moving = 1;
         }
     }
 
     void FixedUpdate()
     {
+        if(isAttack){
+            Attack(0);
+        }
         if(moving != 0){
             if(moving < 0)
                 Move(false);
             else
                 Move(true);
-            
+            moving = 0;
         }
         
-
-        {
-            Vector2 temp = rb.velocity;
-            temp.x -= temp.x * fric * Time.deltaTime;
-            rb.velocity = temp;
-        }
+        velocity.x -= velocity.x * fric * Time.deltaTime;
+        velocity = move.SetSpeed(velocity);
+        
     }
 
     void Move(bool isChasing){
-        //Debug.Log("Moving");
         waitTime = 0;
+
         if(!isChasing){
             direction = Random.Range(0, 2) == 0 ? 1 : -1;
-            transform.parent.localScale = new Vector2(direction, 1);
-            rb.velocity = new Vector2(direction * speed, rb.velocity.y);
         }
+        else{
+            direction = GameController.instance.rabbit.transform.position.x > transform.position.x ? 1 : -1;
+        }
+        transform.parent.localScale = new Vector2(direction, 1);
+        velocity = move.SetSpeed(new Vector2(direction * speed, rb.velocity.y));
+    }
+
+    IEnumerator Warning(){
+        //Debug.Log("Warning");
+        GameObject warning = Instantiate(warningPrefab, transform.position, transform.rotation);
+        warning.transform.parent = transform.parent;
+        warning.transform.localPosition = new Vector3(0.6f, 0.6f, 0);
+        warning.transform.localScale = new Vector2(2, 2);
+
+        // Vector2 temp = warning.transform.position;
+        // for(int i=0; i<10; i++){
+        //     temp.y += 0.1f;
+        // }
+        yield return new WaitForSeconds(2);
+        Destroy(warning);
     }
 
     void SetStatus(int status){
@@ -131,21 +182,32 @@ public class Enemy : MonoBehaviour
 
     void Attack(int mode){
         switch(mode){
-            case 0:
+            case 0:            
+                direction = GameController.instance.rabbit.transform.position.x > transform.position.x ? 1 : -1;
+                transform.parent.localScale = new Vector2(direction, 1);    
+            
+                SetStatus(1);
+                velocity = move.SetSpeed(new Vector2(-6 * direction, 10 / GameController.gravityScale));
                 break;
             case 1:
                 break;
             default:
                 break;
         }
+        isAttack = false;
+        
+    }
+
+    void AttackMode1(){
         int n = 10;
         float dispersion = 10 * Mathf.PI / 180;
-        Vector3 dir = rabbit.transform.position - transform.position;
+        Vector3 dir = GameController.instance.rabbit.transform.position - transform.position;
         float angle = Mathf.Atan2(dir.y, dir.x);
         angle -= (n-1) * dispersion / 2.0f;
         for(int i=0; i<n; i++){
             float angleDeg = angle * Mathf.Rad2Deg;
             GameObject bullet = Instantiate(bulletPrefab, transform.position, transform.rotation);
+            bullet.GetComponent<Bullet>().SetEnemy(true);
             
             float x = bulletSpeed * Mathf.Cos(angle);
             float y = bulletSpeed * Mathf.Sin(angle);

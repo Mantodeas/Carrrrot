@@ -18,10 +18,18 @@ public class Status : MonoBehaviour
         
     }
 
+    void FixedUpdate()
+    {
+        
+    }
+
     public void TakeDamage(float damage){
         HP -= damage;
         if (HP < 0)
             Die();
+        if(this.gameObject.tag == "Rabbit"){
+            Debug.Log("Current HP:" + HP);
+        }
     }
 
     private void Die(){
@@ -32,4 +40,5 @@ public class Status : MonoBehaviour
             Debug.Log("YOU DIED!!");
         }
     }
+
 }

@@ -5,7 +5,7 @@ using UnityEngine;
 public class Bullet : MonoBehaviour
 {
     [SerializeField] float damage;
-    bool enemy;
+    [SerializeField] bool enemy;
     Rigidbody2D rb;
     // Start is called before the first frame update
     void Start()
@@ -28,6 +28,7 @@ public class Bullet : MonoBehaviour
         }
         else if((other.tag == "Enemy" && !enemy) || (other.tag == "Rabbit" && enemy)){
             other.GetComponent<Status>().TakeDamage(damage);
+            //Debug.Log("attack" + other.name );
             //播放动画音效
             Destroy(this.gameObject);
         }

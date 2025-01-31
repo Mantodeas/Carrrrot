@@ -10,9 +10,10 @@ using System.Text;
 using UnityEditor;
 using UnityEngine.Experimental.GlobalIllumination;
 
-public class HeroMove : MonoBehaviour
+public class Rabbit : MonoBehaviour
 {
-    private Rigidbody2D rb;
+    Rigidbody2D rb;
+    Vector2 velocity;
     [SerializeField] float playerSpeed;
     private float horizontal;
     private bool facingRight = true;
@@ -29,6 +30,8 @@ public class HeroMove : MonoBehaviour
     float touchBufferTime;
     float jumpCounter;
     bool isJumping;
+    bool nowJump;
+    bool stopJump;
     [SerializeField] bool doubleJump;
 
     [SerializeField] float rushSpeed;
@@ -36,13 +39,15 @@ public class HeroMove : MonoBehaviour
     [SerializeField] float rushCounter;
     bool isRushing;
 
+    [SerializeField] float fallSpeedMax;
+
+
     public Animator ani;
     int aniStatu;
 
     Vector3 ResetPosition;
     // Start is called before the first frame update
     void Awake(){
-        //GetComponent<Numbers>().SetNum(2);
         ResetPosition = transform.position;
     }
 
@@ -63,25 +68,29 @@ public class HeroMove : MonoBehaviour
         horizontal = 0;
         aniStatu = 1;     //stand
 
+        
+        velocity = GetComponent<MoveController>().ToRelativeVelocity(rb.velocity);
+        //  Debug.Log("velocity:" + velocity);
+
         if(Input.GetKey(KeyCode.A)){
             horizontal -= 1;
-            if(rb.velocity.x < -0.01)
+            if(velocity.x < -0.01)
                 aniStatu = 2; //walk
         }
         if(Input.GetKey(KeyCode.D)){
             horizontal += 1;
-            if(rb.velocity.x > 0.01)
+            if(velocity.x > 0.01)
                 aniStatu = 2; //walk
         }
 
-        if(rb.velocity.y > 0 && !isGround()){       //地面不平
+        if(velocity.y > 0 && !isGround()){       //地面不平
             aniStatu = 3; //Jump
         }
-        else if(rb.velocity.y < 0 && !isGround()){  //地面不平
+        else if(velocity.y < 0 && !isGround()){  //地面不平
             aniStatu = 4; //Fall
         }
 
-        if((Input.GetKeyDown(KeyCode.L) || Input.GetMouseButtonDown(1))&& isGround()){
+        if((Input.GetKeyDown(KeyCode.L) || Input.GetMouseButtonDown(1)) && isGround() && !isRushing){
             isRushing = true;
             rushCounter = rushTimeMax;
         }
@@ -95,33 +104,68 @@ public class HeroMove : MonoBehaviour
                 }
 
                 if(!isJumping && (isGround() || touchBufferTime > 0)){
-                    SetSpeed(rb.velocity.x, jumpSpeed, false);
+                    //GetComponent<Status>().AddSpeed(true, 0.1f);
                     isJumping = true;
+                    nowJump = true;
+                    stopJump = false;
                     jumpCounter = 0;
                     doubleJump = true;
                 }
                 else if(!isJumping && doubleJump){
-                    SetSpeed(rb.velocity.x, jumpSpeed*0.9f, false);
+                    //GetComponent<Status>().AddSpeed(true, 0.1f);
                     isJumping = true;
+                    nowJump = true;
+                    stopJump = false;
                     jumpCounter = 0;
                     doubleJump = false;
                 }
             }
             
         }
+
         //if(Input.GetButtonUp("Jump")){
-        if(Input.GetKeyUp(KeyCode.K) || Input.GetKeyUp(KeyCode.Space)){
-            if(isJumping)
-                SetSpeed(rb.velocity.x, rb.velocity.y / 1.5f, false);
-            isJumping = false;
+         if(Input.GetKeyUp(KeyCode.K) || Input.GetKeyUp(KeyCode.Space)){
+            stopJump = true;
+         }
+        //     if(isJumping){
+        //         GetComponent<Status>().SetSpeed(new Vector2(velocity.x, velocity.y / 3f));
+        //     }
+        //     Debug.Log("JumpingFall" + isJumping);
+        //     isJumping = false;
+        // }
+
+        if(isRushing)
+            aniStatu = 5; //Rush
+        
+        
+
+        ani.SetInteger("status", aniStatu);
+        if(touchBufferTime > 0)
+            touchBufferTime -= Time.deltaTime;
+
+        if(Input.GetKey(KeyCode.LeftShift)){
+            if(Input.GetKeyDown(KeyCode.W)){
+                GameController.GravityScaleChange(0.8f);
+            }
+            else if(Input.GetKeyDown(KeyCode.S)){
+                GameController.GravityScaleChange(1.5f);
+            }
+            else if(Input.GetKeyDown(KeyCode.A) || Input.GetKeyDown(KeyCode.D)){
+                GameController.GravityScaleChange(1f);
+            }
+
         }
+        
     }
 
     private void FixedUpdate(){
+        //float theta = GameController.theta;        
+
         Move();
         if(isGround())
             doubleJump = true;
         //transform.Find("ColliderBox").GetComponent<ColliderBox>().SetContact(false);
+        
         
         if(isRushing){
             Rush();
@@ -132,15 +176,26 @@ public class HeroMove : MonoBehaviour
         else
             Fall();
 
-        ani.SetInteger("status", aniStatu);
         transform.Find("ColliderBox").GetComponent<ColliderBox>().SetContact(false);
-        if(touchBufferTime > 0)
-            touchBufferTime -= Time.deltaTime;
+
+        
+
+        
+            
+            
+        //rb.velocity = new Vector2(velocity.x*Mathf.Cos(theta*Mathf.Deg2Rad) + velocity.y*Mathf.Sin(theta*Mathf.Deg2Rad), -velocity.x*Mathf.Sin(theta*Mathf.Deg2Rad) + velocity.y*Mathf.Cos(theta*Mathf.Deg2Rad));
+
+        
+        
     }
 
     private void Move(){
-        SetSpeed(horizontal * playerSpeed, rb.velocity.y, false);
-        if((facingRight && horizontal < 0) || (!facingRight && horizontal > 0)){
+        if(velocity.y < -fallSpeedMax * GameController.gravityScale * GameController.gravityNormal){
+            velocity.y = -fallSpeedMax * GameController.gravityScale * GameController.gravityNormal;
+            //Debug.Log("FALL" + -fallSpeedMax * GameController.gravityScale);
+        }
+        velocity = GetComponent<MoveController>().SetSpeed(new Vector2(horizontal * playerSpeed, velocity.y));
+        if(((facingRight && horizontal < 0) || (!facingRight && horizontal > 0)) && !isRushing){
             facingRight = ! facingRight;
             Vector3 temp = transform.localScale;
             temp.x *= -1;
@@ -160,58 +215,54 @@ public class HeroMove : MonoBehaviour
     }
 
     private void Jump(){
-        if(rb.velocity.y > 0 && isJumping){
+        //if(Input.GetButtonUp("Jump")){
+        //if(Input.GetKeyUp(KeyCode.K) || Input.GetKeyUp(KeyCode.Space)){
+        
+        if(stopJump){
+            if(isJumping)
+                velocity = GetComponent<MoveController>().SetSpeed(new Vector2(velocity.x, velocity.y / 3f));
+            //Debug.Log("JumpingFall");
+            isJumping = false;
+            return ;
+        }
+        if(velocity.y <= 0 && !nowJump){
+            isJumping = false;        
+        
+        }
+        
+        if((velocity.y > 0 && isJumping) || nowJump){
             jumpCounter += Time.deltaTime;
+            velocity = GetComponent<MoveController>().SetSpeed(new Vector2(velocity.x, jumpSpeed / GameController.gravityScale));
             if(jumpCounter > jumpTimeMax){
-                SetSpeed(rb.velocity.x, rb.velocity.y / 1.5f, false);
+                //Debug.Log("MAX!!");
+                velocity = GetComponent<MoveController>().SetSpeed(new Vector2(velocity.x, velocity.y / 1.5f));
                 isJumping = false;
             }
-            //SetSpeed(vecGravity * jumpMultiplier * Time.deltaTime, true);
+            nowJump = false;
         }
-        if(rb.velocity.y <= 0)
-            isJumping = false;        
+        
     }
 
     private void Fall(){
-        SetSpeed(-vecGravity * fallMultiplier * Time.deltaTime, true);
+        
     }
 
     private void Rush(){
-        Debug.Log("Rushing:" + rushCounter + " x:" + rb.velocity.x);
+        //Debug.Log("Rushing:" + rushCounter + " x:" + rb.velocity.x);
         if(isGround())
             rushCounter -= Time.deltaTime;
         else
             rushCounter -= Time.deltaTime / 2;
         if(rushCounter > 0){
-            aniStatu = 5; //Rush
-            SetSpeed(rushCounter * rushSpeed * (facingRight?1:-1), rb.velocity.y, false);
+            velocity = GetComponent<MoveController>().SetSpeed(new Vector2(rushCounter * rushSpeed * (facingRight?1:-1), velocity.y));
         }
         else
             isRushing = false;
     }
 
-    private void SetSpeed(float x, float y, bool relative){
-        Vector2 temp = new Vector2(x, y);
-        if(relative){
-            rb.velocity += temp;
-        }
-        else{
-            rb.velocity = temp;
-        }
-    }
-
-    private void SetSpeed(Vector2 speed, bool relative){
-        if(relative){
-            rb.velocity += speed;
-        }
-        else{
-            rb.velocity = speed;
-        }
-    }
-
     public void Reset(){
         transform.position = ResetPosition;
-        SetSpeed(0, 0, false);
+        velocity = GetComponent<MoveController>().SetSpeed(new Vector2(0, 0));
         //GetComponent<Numbers>().Reset();
     }
 }
