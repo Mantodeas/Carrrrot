@@ -7,10 +7,12 @@ public class Bullet : MonoBehaviour
     [SerializeField] float damage;
     [SerializeField] bool enemy;
     Rigidbody2D rb;
+    float liveTime;
     // Start is called before the first frame update
     void Start()
     {
         rb = GetComponent<Rigidbody2D>();
+        liveTime = 10;  //最大存活10秒
     }
 
     // Update is called once per frame
@@ -18,6 +20,10 @@ public class Bullet : MonoBehaviour
     {
         float angleRad = Mathf.Atan2(rb.velocity.y, rb.velocity.x) * Mathf.Rad2Deg;
         transform.rotation = Quaternion.AngleAxis(angleRad, Vector3.forward);
+        liveTime -= Time.deltaTime;
+        if(liveTime <= 0){
+            Destroy(gameObject);
+        }
     }
 
     void OnTriggerStay2D(Collider2D other)

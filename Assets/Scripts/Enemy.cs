@@ -8,33 +8,36 @@ using UnityEngine.PlayerLoop;
 
 public class Enemy : MonoBehaviour
 {
-    [SerializeField] float bulletSpeed;
-    [SerializeField] GameObject bulletPrefab;
+    [Header("子弹")]
+    [SerializeField] protected float bulletSpeed;
+    [SerializeField] protected GameObject bulletPrefab;
 
-    [SerializeField] int currentAction;
+    [Header("状态机")]
+    [SerializeField] protected int currentAction;
 
-    [SerializeField] float waitTimeMax;
-    float waitTime;
-    float discoverTime;
-    [SerializeField] int attackPortion;
-    [SerializeField] float attackDistance;
+    [Header("等待与行动")]
+    [SerializeField] protected float waitTimeMax;
+    protected float waitTime;
+    [SerializeField] protected int direction;
+    protected bool discovered;
+    protected float discoverTime;
+    protected int moving;
+    [SerializeField] protected float fric;
+    [SerializeField] protected float speed;
+    protected Vector2 velocity;
+    protected MoveController move;
+    protected Rigidbody2D rb;
 
+    [Header("攻击")]
+    [SerializeField] protected int attackModeMax;
+    protected bool isAttack;
+    [SerializeField] protected int attackPortion;
+    [SerializeField] protected float attackDistance;
+
+    [Header("动画")]
     public Animator ani;
-    int aniStatu;
-
-    [SerializeField] int direction;
-    bool discovered;
-
-    int moving;
-    bool isAttack;
-    [SerializeField] float fric;
-
-    Rigidbody2D rb;
-    [SerializeField] float speed;
-
-    [SerializeField] GameObject warningPrefab;
-    Vector2 velocity;
-    MoveController move;
+    protected int aniStatu;
+    [SerializeField] protected GameObject warningPrefab;
     // Start is called before the first frame update
     void Start()
     {
@@ -107,14 +110,14 @@ public class Enemy : MonoBehaviour
                         moving = 1;         //朝主角方向移动
                     }
                     else{
-                        isAttack = true;
+                        currentAction = 3;
                     }
                     waitTime = 0;
                 }
                 break;
 
             case 3: //攻击
-                Attack(0);
+                Attack(Random.Range(0, attackModeMax));
                 break;
 
             default:
@@ -122,7 +125,7 @@ public class Enemy : MonoBehaviour
         }
 
         if(Input.GetKeyDown(KeyCode.Q)){
-            isAttack = true;
+            currentAction = 3;
         }
         if(Input.GetKeyDown(KeyCode.E)){
             //Move(true);
@@ -132,9 +135,6 @@ public class Enemy : MonoBehaviour
 
     void FixedUpdate()
     {
-        if(isAttack){
-            Attack(0);
-        }
         if(moving != 0){
             if(moving < 0)
                 Move(false);
@@ -148,7 +148,7 @@ public class Enemy : MonoBehaviour
         
     }
 
-    void Move(bool isChasing){
+    virtual protected void Move(bool isChasing){
         waitTime = 0;
 
         if(!isChasing){
@@ -161,7 +161,7 @@ public class Enemy : MonoBehaviour
         velocity = move.SetSpeed(new Vector2(direction * speed, rb.velocity.y));
     }
 
-    IEnumerator Warning(){
+    protected IEnumerator Warning(){
         //Debug.Log("Warning");
         GameObject warning = Instantiate(warningPrefab, transform.position, transform.rotation);
         warning.transform.parent = transform.parent;
@@ -176,51 +176,11 @@ public class Enemy : MonoBehaviour
         Destroy(warning);
     }
 
-    void SetStatus(int status){
+    protected void SetStatus(int status){
         ani.SetInteger("status", status);
     }
 
-    void Attack(int mode){
-        switch(mode){
-            case 0:            
-                direction = GameController.instance.rabbit.transform.position.x > transform.position.x ? 1 : -1;
-                transform.parent.localScale = new Vector2(direction, 1);    
-            
-                SetStatus(1);
-                velocity = move.SetSpeed(new Vector2(-6 * direction, 10 / GameController.gravityScale));
-                break;
-            case 1:
-                break;
-            default:
-                break;
-        }
-        isAttack = false;
-        
-    }
-
-    void AttackMode1(){
-        int n = 10;
-        float dispersion = 10 * Mathf.PI / 180;
-        Vector3 dir = GameController.instance.rabbit.transform.position - transform.position;
-        float angle = Mathf.Atan2(dir.y, dir.x);
-        angle -= (n-1) * dispersion / 2.0f;
-        for(int i=0; i<n; i++){
-            float angleDeg = angle * Mathf.Rad2Deg;
-            GameObject bullet = Instantiate(bulletPrefab, transform.position, transform.rotation);
-            bullet.GetComponent<Bullet>().SetEnemy(true);
-            
-            float x = bulletSpeed * Mathf.Cos(angle);
-            float y = bulletSpeed * Mathf.Sin(angle);
-            //Debug.Log(direction + " " + angle + " " + Mathf.Sin(angle) + " " + Mathf.Cos(angle));
-            bullet.GetComponent<Rigidbody2D>().velocity = new Vector3(x, y, 0);
-
-            Vector3 temp = bullet.transform.position;
-            temp.x += Mathf.Cos(angle) * 0.5f;
-            temp.y += Mathf.Sin(angle) * 0.5f;
-            bullet.transform.position = temp;
-
-            angle += dispersion;
-            //Debug.Log(angle);
-        }
+    virtual protected void Attack(int mode){
+        currentAction = 2;
     }
 }

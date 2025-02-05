@@ -10,7 +10,7 @@ GameObject:
   m_Component:
   - component: {fileID: 2772005054446079186}
   - component: {fileID: 2772005054446079189}
-  - component: {fileID: 2772005054446079185}
+  - component: {fileID: 6592407211972596082}
   - component: {fileID: 2772005054446079183}
   - component: {fileID: 2772005054446079184}
   - component: {fileID: 2772005054446079182}
@@ -88,7 +88,7 @@ SpriteRenderer:
   m_WasSpriteAssigned: 1
   m_MaskInteraction: 0
   m_SpriteSortPoint: 0
---- !u!114 &2772005054446079185
+--- !u!114 &6592407211972596082
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -97,19 +97,20 @@ MonoBehaviour:
   m_GameObject: {fileID: 2772005054446079191}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: c96b55e3215f1724a84b15470c253605, type: 3}
+  m_Script: {fileID: 11500000, guid: 68d1132bb326fdd4aa7f477a1bc19d09, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
   bulletSpeed: 12
   bulletPrefab: {fileID: 3663320270384735772, guid: c8791cb1659fb7c44b564a5ffe172e30, type: 3}
   currentAction: 0
   waitTimeMax: 15
-  attackPortion: 80
-  attackDistance: 5
-  ani: {fileID: 2772005054446079182}
   direction: 0
   fric: 1
   speed: 5
+  attackModeMax: 1
+  attackPortion: 80
+  attackDistance: 0
+  ani: {fileID: 2772005054446079182}
   warningPrefab: {fileID: 5350022520683807799, guid: bc7a428a90ee841419536bad3158c40f, type: 3}
 --- !u!114 &2772005054446079183
 MonoBehaviour:
@@ -125,6 +126,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   HPMax: 50
   HP: 0
+  invincible: 0
 --- !u!61 &2772005054446079184
 BoxCollider2D:
   m_ObjectHideFlags: 0
@@ -182,7 +184,7 @@ GameObject:
   - component: {fileID: 2772005055697552815}
   - component: {fileID: 803200603504821953}
   - component: {fileID: 2772005055697552812}
-  m_Layer: 0
+  m_Layer: 9
   m_Name: Brush
   m_TagString: Untagged
   m_Icon: {fileID: 0}

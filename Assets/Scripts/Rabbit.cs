@@ -9,6 +9,7 @@ using System;
 using System.Text;
 using UnityEditor;
 using UnityEngine.Experimental.GlobalIllumination;
+using UnityEngine.Scripting;
 
 public class Rabbit : MonoBehaviour
 {
@@ -21,7 +22,8 @@ public class Rabbit : MonoBehaviour
     [SerializeField] Transform GroundCheck;
     [SerializeField] LayerMask GroundLayer;
 
-    [SerializeField] Vector2 vecGravity;
+    [SerializeField] float gravityTime;
+    float gravityCD;
     [SerializeField] float fallMultiplier;
 
     [SerializeField] float jumpTimeMax;
@@ -40,7 +42,7 @@ public class Rabbit : MonoBehaviour
     bool isRushing;
 
     [SerializeField] float fallSpeedMax;
-
+    [SerializeField] GameObject HP;
 
     public Animator ani;
     int aniStatu;
@@ -54,7 +56,7 @@ public class Rabbit : MonoBehaviour
     void Start()
     {
         rb = GetComponent<Rigidbody2D>();
-
+        gravityCD = 0;
     }
 
     // Update is called once per frame
@@ -143,19 +145,28 @@ public class Rabbit : MonoBehaviour
         if(touchBufferTime > 0)
             touchBufferTime -= Time.deltaTime;
 
-        if(Input.GetKey(KeyCode.LeftShift)){
+        if(gravityCD <= 0){
+            Debug.Log(gravityCD);
             if(Input.GetKeyDown(KeyCode.W)){
-                GameController.GravityScaleChange(0.8f);
+                StartCoroutine(GravityControl(0.8f));
             }
             else if(Input.GetKeyDown(KeyCode.S)){
-                GameController.GravityScaleChange(1.5f);
-            }
-            else if(Input.GetKeyDown(KeyCode.A) || Input.GetKeyDown(KeyCode.D)){
-                GameController.GravityScaleChange(1f);
-            }
-
+                StartCoroutine(GravityControl(1.5f));
+            }   
+        }
+        else{
+            gravityCD -= Time.deltaTime;
         }
         
+        
+    }
+
+    IEnumerator GravityControl(float gravity){
+        gravityCD = gravityTime;
+        GameController.GravityScaleChange(gravity);
+        yield return new WaitForSeconds(gravityTime);
+        GameController.GravityScaleChange(1f);
+        gravityCD = gravityTime;
     }
 
     private void FixedUpdate(){
@@ -176,17 +187,8 @@ public class Rabbit : MonoBehaviour
         else
             Fall();
 
-        transform.Find("ColliderBox").GetComponent<ColliderBox>().SetContact(false);
-
-        
-
-        
-            
-            
+        transform.Find("ColliderBox").GetComponent<ColliderBox>().SetContact(false);            
         //rb.velocity = new Vector2(velocity.x*Mathf.Cos(theta*Mathf.Deg2Rad) + velocity.y*Mathf.Sin(theta*Mathf.Deg2Rad), -velocity.x*Mathf.Sin(theta*Mathf.Deg2Rad) + velocity.y*Mathf.Cos(theta*Mathf.Deg2Rad));
-
-        
-        
     }
 
     private void Move(){
@@ -239,6 +241,7 @@ public class Rabbit : MonoBehaviour
                 isJumping = false;
             }
             nowJump = false;
+            
         }
         
     }
@@ -265,4 +268,19 @@ public class Rabbit : MonoBehaviour
         velocity = GetComponent<MoveController>().SetSpeed(new Vector2(0, 0));
         //GetComponent<Numbers>().Reset();
     }
+
+    public void ChangeHPBar(float portion){
+        HP.transform.localScale = new Vector3(portion, HP.transform.localScale.y, 1);
+    }
+
+    // void OnTriggerEnter2D(Collider2D other) {    
+    //     if(other.gameObject.layer == LayerMask.NameToLayer("Enemy") || other.gameObject.layer == LayerMask.NameToLayer("Trap"))
+    //     {
+    //         Debug.Log(other.gameObject.name + " " + LayerMask.LayerToName(other.gameObject.layer));
+    //         Physics2D.IgnoreCollision(GetComponent<BoxCollider2D>(), other, true);
+    //         //Physics2D.IgnoreCollision(transform.Find("Hitbox").GetComponent<BoxCollider2D>(), other, true);
+    //         GetComponent<Status>().TakeDamage(-0.2f);   //特殊值，代表失去20%的血量
+    //     }
+    // }
+
 }

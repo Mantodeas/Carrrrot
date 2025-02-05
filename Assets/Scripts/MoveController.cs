@@ -11,6 +11,9 @@ public class MoveController : MonoBehaviour
     void Start()
     {
         rb = GetComponent<Rigidbody2D>();
+
+        jumpDirection = new Vector2(0, 1);
+        moveDirection = new Vector2(1, 0);
     }
 
     // Update is called once per frame
